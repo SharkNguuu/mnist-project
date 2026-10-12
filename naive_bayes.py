@@ -5,6 +5,7 @@ class GaussianNB:
         self.var_smoothing = var_smoothing
 
     def fit(self, X, y):
+        self.class_prior_ = np.bincount(y) / len(y)
         self.classes_ = np.unique(y)
         k, d = len(self.classes_), X.shape[1]
         self.mean_ = np.zeros((k, d))
