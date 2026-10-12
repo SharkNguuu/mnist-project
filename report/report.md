@@ -87,4 +87,49 @@ Với η = 0,01, train loss cuối còn 0,3357, cao nhất trong các giá trị
 
 ![Quét learning rate](softmax_lr.png)
 ![Confusion matrix softmax (validation)](softmax_confusion_val.png)
+## 7. Mạng neuron nhiều lớp (MLP)
+
+**Kiến trúc.** Mạng có một lớp ẩn 128 nơ-ron với hàm kích hoạt ReLU:
+
+    Z1 = X W1 + b1
+    A1 = max(0, Z1)
+    Z2 = A1 W2 + b2
+    P  = softmax(Z2)
+
+Hàm mất mát là cross-entropy trung bình L giống mục 6. Tham số được khởi tạo He: W ~ N(0, 2/n_in), bias bằng 0. Khởi tạo He giữ phương sai của kích hoạt ổn định qua lớp ReLU, và khởi tạo ngẫu nhiên phá vỡ tính đối xứng giữa các nơ-ron ẩn (nếu khởi tạo toàn 0, mọi nơ-ron ẩn nhận cùng gradient và luôn giống nhau).
+
+**Lan truyền ngược.** Áp dụng quy tắc chuỗi từ đầu ra về đầu vào:
+
+    dZ2 = (P − Y) / N
+    dW2 = A1ᵀ dZ2 ,  db2 = tổng các hàng của dZ2
+    dA1 = dZ2 W2ᵀ
+    dZ1 = dA1 ⊙ 1[Z1 > 0]
+    dW1 = Xᵀ dZ1 ,  db1 = tổng các hàng của dZ1
+
+trong đó ⊙ là phép nhân từng phần tử và 1[Z1 > 0] là đạo hàm của ReLU (bằng 1 nếu Z1 > 0, bằng 0 nếu không). Khi thêm phạt L2 (λ/2)(‖W1‖² + ‖W2‖²), gradient của W1 và W2 cộng thêm λW1 và λW2.
+
+**Kiểm chứng.**
+
+(i) Kích thước và loss khởi đầu: kích thước của mỗi gradient trùng kích thước tham số tương ứng (W1: 784×128, b1: 128, W2: 128×10, b2: 10). Với khởi tạo He, loss khởi đầu là 2,4387, gần ln 10 = 2,3026.
+
+(ii) Gradient check: so sánh gradient giải tích với đạo hàm số (sai phân trung tâm, ε = 1e-5, float64) trên mạng 32 nơ-ron và 20 mẫu, với các phần tử ngẫu nhiên của mỗi nhóm tham số. Sai số tương đối tối đa:
+
+| Tham số | λ = 0 | λ = 0,1 |
+|---|---|---|
+| W1 | 1,07e-07 | 7,25e-06 |
+| b1 | 1,71e-08 | 7,88e-08 |
+| W2 | 1,35e-07 | 6,89e-08 |
+| b2 | 2,78e-10 | 8,72e-10 |
+
+Tất cả đều dưới 1e-5, và 7 trong 8 giá trị dưới 2e-7. Để làm rõ giá trị lớn nhất (7,25e-06, ở W1 khi λ = 0,1), chúng tôi chạy lại phép kiểm tra riêng cho W1 với λ = 0,1 trên 5 tập phần tử ngẫu nhiên khác nhau, dùng mạng float64 tạo mới: sai số tương đối tối đa nằm trong khoảng 2,8e-07 đến 8,2e-07 và sai số tuyệt đối tối đa trong khoảng 2e-11 đến 5e-11. Sai số tương đối lớn nhất xuất hiện ở các phần tử có gradient nhỏ (cỡ 3e-5 đến 5e-5), nơi sai số làm tròn của phép trừ trong đạo hàm số chiếm tỉ trọng lớn hơn; mức sai số tuyệt đối này phù hợp với sai số làm tròn của float64. Chúng tôi kết luận gradient được cài đúng.
+
+Số phần tử được tính sai số tương đối khi λ = 0 là 124 (W1), 31 (b1), 290 (W2) và 10 (b2); các phần tử mà cả đạo hàm số lẫn giải tích đều gần 0 (ví dụ pixel luôn bằng 0 trong 20 mẫu, nơ-ron ReLU không kích hoạt) bị loại khỏi phép tính tỉ lệ.
+
+(iii) Kiểm tra overfit 100 mẫu: sau 500 bước (η = 0,1), loss giảm từ 2,4311 xuống 0,0082 và accuracy trên 100 mẫu đạt 100%, cho thấy lan truyền ngược hoạt động đúng.
+
+(iv) [Đối chiếu PyTorch: điền sau ngày 7.]
+
+**Huấn luyện.** Mini-batch gradient descent, batch 128, η = 0,1, 20 epoch, xáo trộn mẫu mỗi epoch. Accuracy validation tăng từ 90,59% (epoch 1) lên 97,19% (epoch 20), đạt cao nhất 97,20% ở epoch 19. Train loss giảm đều từ 0,3122 xuống 0,0534, trong khi validation loss giảm từ 0,3277 xuống 0,0961 (epoch 19) rồi tăng nhẹ lên 0,0996 (epoch 20). Khoảng cách giữa train loss (0,0534) và validation loss (0,0996) cho thấy mô hình bắt đầu quá khớp nhẹ. Tổng thời gian chạy 20 epoch, kể cả việc ghi loss mỗi epoch, là 10,7 s.
+
+![Đường học MLP](mlp_curves.png)
 
