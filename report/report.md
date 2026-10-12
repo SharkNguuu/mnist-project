@@ -58,4 +58,33 @@ Cả hai mô hình tốt hơn Gaussian NB sau khi đã tinh chỉnh (79,78%), v�
 **Ổn định số.** Trước khi lấy exp, trừ max của từng hàng của Z, và tính log P qua Z − logsumexp(Z), để tránh tràn số và log(0).
 
 **Kiểm chứng gradient.** Chúng tôi so sánh gradient giải tích với đạo hàm số (sai phân trung tâm, ε = 1e-5) trên 20 mẫu ngẫu nhiên, 300 phần tử ngẫu nhiên của W và toàn bộ b. Sai số tương đối tối đa là 1.22e-07 (λ = 0) và 3.43e-07 (λ = 0,1), tức gradient được cài đúng. Với W = 0, loss khởi đầu bằng 2.3025850929940463 ≈ ln 10 = 2,3026 như lý thuyết.
+**Huấn luyện.** Chúng tôi dùng mini-batch gradient descent, kích thước batch 128, 30 epoch, khởi tạo W = 0 và b = 0 (hợp lệ vì bài toán lồi), xáo trộn thứ tự mẫu mỗi epoch. Pseudocode:
+
+    khởi tạo W = 0, b = 0
+    lặp epoch = 1..E:
+        hoán vị ngẫu nhiên các mẫu huấn luyện
+        với mỗi mini-batch (X_B, Y_B):
+            tính P = softmax(X_B W + b)
+            dW = X_Bᵀ (P − Y_B) / |B| ,  db = tổng các hàng của (P − Y_B) / |B|
+            W ← W − η dW ,  b ← b − η db
+
+**Ảnh hưởng của learning rate.** Chúng tôi quét η ∈ {0,01; 0,05; 0,1; 0,5; 1,0; 2,0} với 30 epoch (hình bên dưới). Kết quả ở epoch cuối:
+
+| η | Accuracy validation | Train loss | Validation loss |
+|---|---|---|---|
+| 0,01 | 90,36% | 0,3357 | 0,3530 |
+| 0,05 | 91,71% | 0,2761 | 0,3078 |
+| **0,1** | **92,02%** | 0,2604 | **0,2997** |
+| 0,5 | 91,86% | 0,2375 | 0,3037 |
+| 1,0 | 91,43% | 0,2381 | 0,3239 |
+| 2,0 | 90,10% | 0,2831 | 0,4087 |
+
+Với η = 0,01, train loss cuối còn 0,3357, cao nhất trong các giá trị từ 0,01 đến 1,0, cho thấy bước nhảy quá nhỏ nên 30 epoch chưa đủ để hội tụ. Các giá trị η từ 0,05 đến 1,0 cho accuracy 91,43-92,02%. Ở η = 0,5 và 1,0, train loss thấp hơn η = 0,1 (0,2375 và 0,2381 so với 0,2604) nhưng validation loss lại cao hơn (0,3037 và 0,3239 so với 0,2997). Khi η = 2,0, accuracy giảm còn 90,10%, validation loss tăng lên 0,4087 (cao nhất), và train loss cuối (0,2831) cao hơn của η = 0,5 và 1,0, gợi ý bước nhảy quá lớn làm tham số dao động quanh điểm tối ưu. Giá trị tốt nhất theo validation là η = 0,1 với accuracy 92,02%. Chênh lệch giữa η = 0,1 và η = 0,5 chỉ 0,16 điểm phần trăm, nên hai giá trị này gần như tương đương.
+
+**Kết quả.** Với η = 0,1, accuracy trên train là 92,87% và trên validation là 92,02% (precision macro 91,92%, recall macro 91,90%, F1 macro 91,90%). Thời gian huấn luyện là 2,67 s (30 epoch, không ghi loss từng epoch) và dự đoán là 0,003 s trên 10.000 ảnh. Đối chiếu với sklearn: chúng tôi gán tham số (W, b) đã huấn luyện vào một mô hình LogisticRegression, cross-entropy trên tập validation trùng đến toàn bộ 16 chữ số thập phân (0,2997336034507736 so với 0,2997336034507736), và dự đoán trùng 100%. Khi để sklearn tự huấn luyện (lbfgs, tối đa 50 vòng, chưa hội tụ), accuracy validation là 91,79% sau 73,1 s, so với 92,02% sau 2,67 s của chúng tôi. Con số này chỉ mang tính tham khảo vì hai bên dùng thuật toán tối ưu và điều kiện dừng khác nhau.
+
+**Nhận xét.** Softmax regression đạt 92,02% trên validation, cao hơn Naïve Bayes tốt nhất (Bernoulli, 83,53%) khoảng 8,5 điểm phần trăm, và cao hơn Gaussian NB đã tinh chỉnh (79,78%) khoảng 12,2 điểm. Mô hình tuyến tính không giả định các pixel độc lập mà học một trọng số riêng cho mỗi cặp (pixel, lớp), nên khai thác được tương quan giữa các vùng trong ảnh tốt hơn. Chênh lệch giữa train và validation là 0,85 điểm phần trăm, khá nhỏ, nên mô hình không quá khớp. Giới hạn nằm ở bản thân mô hình: biên quyết định chỉ là tuyến tính trong không gian 784 chiều, nên các chữ số có dạng viết biến thiên mạnh khó tách được bằng một siêu phẳng. Chúng tôi kỳ vọng MLP (mục 7) vượt qua giới hạn này. Cặp chữ số bị nhầm nhiều nhất trên validation là 3 bị nhầm thành 5.
+
+![Quét learning rate](softmax_lr.png)
+![Confusion matrix softmax (validation)](softmax_confusion_val.png)
 
