@@ -127,7 +127,15 @@ Số phần tử được tính sai số tương đối khi λ = 0 là 124 (W1),
 
 (iii) Kiểm tra overfit 100 mẫu: sau 500 bước (η = 0,1), loss giảm từ 2,4311 xuống 0,0082 và accuracy trên 100 mẫu đạt 100%, cho thấy lan truyền ngược hoạt động đúng.
 
-(iv) [Đối chiếu PyTorch: điền sau ngày 7.]
+(iv) Đối chiếu với PyTorch. Chúng tôi dùng PyTorch (nn.Linear, ReLU, CrossEntropyLoss, SGD) chỉ làm bản tham chiếu; toàn bộ phần tính toán của MLP nộp theo đề là cài đặt NumPy. Ba phép đối chiếu đều bắt đầu từ cùng tham số khởi tạo (sao chép từ mạng NumPy sang PyTorch, có chuyển vị W):
+
+– Một bước: trên cùng một batch 256 mẫu, float64, loss của hai bên trùng nhau hoàn toàn (2,438712367015345, chênh lệch 0). Gradient của W1, b1, W2, b2 lệch tối đa lần lượt 2,78e-17, 2,08e-17, 2,78e-17 và 2,78e-17; chia cho độ lớn lớn nhất của gradient tương ứng, sai số tương đối lần lượt là 5,83e-16, 6,22e-16, 3,07e-16 và 2,98e-16.
+
+– Quỹ đạo: chạy song song 200 bước SGD (η = 0,1, batch 128, cùng các batch), tham số hai bên lệch tối đa 1,11e-16 ở W1, 3,47e-17 ở b1, 2,22e-16 ở W2 và 6,94e-17 ở b2, tức ngang mức sai số làm tròn của float64.
+
+– Huấn luyện đầy đủ: huấn luyện 20 epoch trong PyTorch (float32) với cùng khởi tạo, cùng η và cùng thứ tự batch, accuracy validation tăng từ 90,59% (epoch 1) lên 97,18% (epoch 20), so với 97,19% của bản NumPy. Từ epoch 1 đến epoch 20, accuracy của hai bên lệch nhau tối đa 0,02 điểm phần trăm (2 ảnh trên 10.000). Khi dùng khởi tạo mặc định của PyTorch thay cho khởi tạo He của chúng tôi, accuracy validation sau 20 epoch là 97,09%.
+
+Kết quả cho thấy lan truyền ngược NumPy tính ra cùng giá trị với PyTorch đến sai số làm tròn, và mô hình đạt mức accuracy tương đương.
 
 **Huấn luyện.** Mini-batch gradient descent, batch 128, η = 0,1, 20 epoch, xáo trộn mẫu mỗi epoch. Accuracy validation tăng từ 90,59% (epoch 1) lên 97,19% (epoch 20), đạt cao nhất 97,20% ở epoch 19. Train loss giảm đều từ 0,3122 xuống 0,0534, trong khi validation loss giảm từ 0,3277 xuống 0,0961 (epoch 19) rồi tăng nhẹ lên 0,0996 (epoch 20). Khoảng cách giữa train loss (0,0534) và validation loss (0,0996) cho thấy mô hình bắt đầu quá khớp nhẹ. Tổng thời gian chạy 20 epoch, kể cả việc ghi loss mỗi epoch, là 10,7 s.
 
