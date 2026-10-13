@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 import sklearn.datasets
-CACHE = Path("data/mnist.npz")
+CACHE = Path(__file__).resolve().parent / "data" / "mnist.npz"
 
 def load_mnist_raw():
     """Trả về (X_train, y_train, X_test, y_test), X dạng uint8 (N, 784)."""
