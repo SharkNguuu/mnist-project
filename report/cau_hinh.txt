@@ -1,0 +1,7 @@
+Mô hình	                           Cấu hình
+Gaussian NB	                       var_smoothing = 0,1
+Multinomial NB	                   α = 1e-4
+Bernoulli NB	                   α = 1e-3
+Softmax regression	               η = 0,1, 30 epoch, batch 128
+MLP	                               512 nơ-ron, η = 0,3, 20 epoch, batch 128
+Random Forest	                   chọn ở ngày 10

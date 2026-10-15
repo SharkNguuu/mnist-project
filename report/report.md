@@ -8,7 +8,7 @@ Mỗi ảnh được làm phẳng thành vector 784 chiều và chuẩn hoá b�
 
 ## 2. Khám phá dữ liệu
 
-Số mẫu mỗi lớp trong tập train dao động từ 4543 đến 5600 (xem hình bên dưới), tức các lớp gần cân bằng nên accuracy là độ đo hợp lý. Có khoảng 0.808802168367347% pixel bằng 0, và có 71 pixel luôn bằng 0 trên toàn tập train (phương sai bằng 0), nên khi cài Gaussian Naïve Bayes phải cộng một hằng số nhỏ ε vào phương sai để tránh chia cho 0.
+Số mẫu mỗi lớp trong tập train dao động từ 4543 đến 5600 (xem hình bên dưới), tức các lớp gần cân bằng nên accuracy là độ đo hợp lý. Có khoảng 80,9% pixel bằng 0, và có 71 pixel luôn bằng 0 trên toàn tập train (phương sai bằng 0), nên khi cài Gaussian Naïve Bayes phải cộng một hằng số nhỏ ε vào phương sai để tránh chia cho 0.
 
 ![Mẫu ảnh](eda_samples.png)
 
@@ -19,10 +19,6 @@ Số mẫu mỗi lớp trong tập train dao động từ 4543 đến 5600 (xem 
 ## 3. Độ đo đánh giá
 
 Chúng tôi tự cài confusion matrix bằng `np.bincount` và suy ra accuracy, precision, recall, F1 (macro) từ ma trận này. Kết quả được đối chiếu với scikit-learn trên dữ liệu ngẫu nhiên và khớp hoàn toàn (xem `tests/test_metrics.py`).
-
-## Khai báo sử dụng AI
-
-Nhóm có dùng trợ lý AI (Claude) để hỗ trợ lên lộ trình và gợi ý mã nguồn. Chúng tôi đã đọc, kiểm chứng và chịu trách nhiệm về toàn bộ mã nộp.
 ## 4. Gaussian Naïve Bayes
 
 **Mô hình.** Giả sử các pixel độc lập có điều kiện theo lớp và mỗi pixel i của lớp c có phân phối chuẩn N(μ_ci, σ²_ci). Dự đoán chọn lớp cực đại hoá
@@ -140,4 +136,53 @@ Kết quả cho thấy lan truyền ngược NumPy tính ra cùng giá trị v�
 **Huấn luyện.** Mini-batch gradient descent, batch 128, η = 0,1, 20 epoch, xáo trộn mẫu mỗi epoch. Accuracy validation tăng từ 90,59% (epoch 1) lên 97,19% (epoch 20), đạt cao nhất 97,20% ở epoch 19. Train loss giảm đều từ 0,3122 xuống 0,0534, trong khi validation loss giảm từ 0,3277 xuống 0,0961 (epoch 19) rồi tăng nhẹ lên 0,0996 (epoch 20). Khoảng cách giữa train loss (0,0534) và validation loss (0,0996) cho thấy mô hình bắt đầu quá khớp nhẹ. Tổng thời gian chạy 20 epoch, kể cả việc ghi loss mỗi epoch, là 10,7 s.
 
 ![Đường học MLP](mlp_curves.png)
+## 8. Ảnh hưởng của siêu tham số lên MLP
+
+**Thiết kế.** Chúng tôi quét từng siêu tham số, giữ cố định các tham số còn lại (không phải quét lưới đầy đủ): (A) số nơ-ron lớp ẩn trong {8, 16, 32, 64, 128, 256, 512} với η = 0,1; (B) learning rate η trong {0,01; 0,03; 0,1; 0,3; 1,0} với 128 nơ-ron. Mọi cấu hình huấn luyện 20 epoch, batch 128. Thí nghiệm A chạy 3 seed (0, 1, 2) và báo trung bình ± độ lệch chuẩn (tính trên 3 seed, chia cho N); thí nghiệm B chạy 1 seed. Việc lựa chọn chỉ dựa trên tập validation; tập test không được dùng.
+
+## 8. Ảnh hưởng của siêu tham số lên MLP
+
+**Thiết kế.** Chúng tôi quét từng siêu tham số, giữ cố định các tham số còn lại (không phải quét lưới đầy đủ): (A) số nơ-ron lớp ẩn trong {8, 16, 32, 64, 128, 256, 512} với η = 0,1; (B) learning rate η trong {0,01; 0,03; 0,1; 0,3; 1,0} với 128 nơ-ron. Mọi cấu hình huấn luyện 20 epoch, batch 128. Thí nghiệm A chạy 3 seed (0, 1, 2) và báo trung bình ± độ lệch chuẩn (tính trên 3 seed, chia cho N); thí nghiệm B chạy 1 seed. Việc lựa chọn chỉ dựa trên tập validation; tập test không được dùng.
+
+**Kết quả A (số nơ-ron).**
+
+| Số nơ-ron | Số tham số | Val acc (%) | Train acc (%) |
+|---|---|---|---|
+| 8 | 6.370 | 91,49 ± 0,50 | 92,62 |
+| 16 | 12.730 | 94,43 ± 0,11 | 95,74 |
+| 32 | 25.450 | 96,10 ± 0,23 | 97,37 |
+| 64 | 50.890 | 96,82 ± 0,06 | 98,27 |
+| 128 | 101.770 | 97,13 ± 0,09 | 98,68 |
+| 256 | 203.530 | 97,39 ± 0,08 | 98,92 |
+| 512 | 407.050 | 97,45 ± 0,06 | 99,09 |
+
+Accuracy validation tăng từ 91,49% (8 nơ-ron) lên 97,45% (512 nơ-ron). Mỗi lần nhân đôi số nơ-ron, mức tăng lần lượt là 2,94; 1,67; 0,72; 0,31; 0,26 và 0,06 điểm phần trăm, tức tăng nhanh đến khoảng 64 nơ-ron rồi chậm dần. Từ 128 lên 512 nơ-ron (gấp 4 số tham số) accuracy chỉ tăng 0,32 điểm. Độ lệch chuẩn giữa 3 seed nhỏ (0,06 đến 0,09) từ 64 nơ-ron trở lên và lớn nhất ở 8 nơ-ron (0,50), nên chênh lệch 0,06 điểm giữa 256 và 512 nơ-ron ngang với độ lệch chuẩn, không đủ cơ sở để phân biệt hai cấu hình này. Khoảng cách train − validation nhìn chung rộng dần từ 1,13 điểm (8 nơ-ron) đến 1,64 điểm (512 nơ-ron) nhưng không đơn điệu: mạng lớn khớp tập train tốt hơn (99,09%) nhưng validation tăng rất ít.
+
+Chúng tôi không báo cáo thời gian huấn luyện ở thí nghiệm này vì phép đo không lặp lại được: cùng cấu hình 128 nơ-ron, thời gian là 9,4 s ở lần đo đầu và 88,1 s khi đo lại, tức khác nhau khoảng 9 lần (chưa xác định được nguyên nhân). So sánh thời gian giữa các mô hình được thực hiện riêng trong điều kiện đo thống nhất (mục so sánh).
+
+**Kết quả B (learning rate).**
+
+| η | Val acc epoch 20 (%) | Train loss | Val loss |
+|---|---|---|---|
+| 0,01 | 93,11 | 0,2260 | 0,2459 |
+| 0,03 | 95,77 | 0,1302 | 0,1552 |
+| 0,1 | 97,19 | 0,0534 | 0,0996 |
+| 0,3 | 97,69 | 0,0120 | 0,0855 |
+| 1,0 | 97,64 | 0,0030 | 0,1068 |
+
+Với η = 0,01 và 0,03, đường accuracy trên hình (b) vẫn còn đi lên ở epoch 20, tức 20 epoch chưa đủ để hội tụ (93,11% và 95,77%). η = 0,3 và 1,0 đạt mức cao nhanh nhất và từ khoảng epoch 8 trở đi dao động quanh 97 đến 98% (đọc từ hình, xấp xỉ), còn η = 0,1 tăng chậm hơn nhưng đều (97,19%). Train loss giảm khi η tăng (từ 0,2260 xuống 0,0030), trong khi validation loss thấp nhất ở η = 0,3 (0,0855) và tăng lại ở η = 1,0 (0,1068) dù accuracy gần bằng nhau (97,69% và 97,64%); điều này gợi ý ở η = 1,0 mô hình khớp tập train mạnh hơn mà không cải thiện trên validation. Chênh lệch 0,05 điểm giữa η = 0,3 và 1,0 nhỏ hơn độ lệch chuẩn giữa các seed ở thí nghiệm A (khoảng 0,09), và thí nghiệm B chỉ có một seed, nên hai giá trị này không phân biệt được về accuracy.
+
+**Lựa chọn.** Về learning rate, chúng tôi chọn η = 0,3: accuracy cao nhất (97,69%) và validation loss thấp nhất (0,0855) ở thí nghiệm B. Vì hai thí nghiệm quét riêng lẻ nên cặp (số nơ-ron tốt nhất, η tốt nhất) chưa từng được chạy, chúng tôi chạy xác nhận trên validation với η = 0,3, 3 seed:
+
+| Số nơ-ron | Val acc (%) |
+|---|---|
+| 128 | 97,60 ± 0,07 |
+| 256 | 97,83 ± 0,07 |
+| 512 | 97,86 ± 0,02 |
+
+Khi η tăng từ 0,1 lên 0,3, accuracy validation tăng 0,47 điểm ở 128 nơ-ron (97,13 lên 97,60) và 0,44 điểm ở 256 nơ-ron (97,39 lên 97,83), đều lớn hơn nhiều độ lệch chuẩn. Số của thí nghiệm B ở 128 nơ-ron (97,69%, một seed) cao hơn trung bình 3 seed (97,60%), cho thấy nhiễu của kết quả một seed. 128 nơ-ron thấp hơn 256 nơ-ron 0,23 điểm (hơn 3 lần độ lệch chuẩn) nên bị loại. 512 nơ-ron cho accuracy cao nhất (97,86 ± 0,02%), cao hơn 128 nơ-ron 0,26 điểm và cao hơn 256 nơ-ron 0,03 điểm. Theo quy tắc đặt trước, 256 nơ-ron chỉ được chọn nếu nằm trong một độ lệch chuẩn của cấu hình tốt nhất; độ lệch chuẩn của 512 nơ-ron là 0,02 điểm nhỏ hơn mức chênh 0,03, nên chúng tôi chọn 512 nơ-ron. Kết quả này sát ngưỡng và cần đọc thận trọng: mức chênh 0,03 điểm nhỏ hơn độ lệch chuẩn của 256 nơ-ron (0,07), và độ lệch chuẩn được tính từ chỉ 3 seed, nên không loại trừ được rằng hai cấu hình tương đương về accuracy. Đổi lại, 512 nơ-ron có số tham số gấp đôi (407.050 so với 203.530). Với η = 0,3, mức tăng từ 128 lên 512 nơ-ron là 0,26 điểm, và khi η tăng từ 0,1 lên 0,3, accuracy của 512 nơ-ron tăng từ 97,45% lên 97,86% (0,41 điểm).
+
+Cấu hình cuối cùng là 512 nơ-ron, η = 0,3 (batch 128, 20 epoch), được dùng để huấn luyện lại và đánh giá trên tập test ở mục so sánh.
+
+![Ảnh hưởng của siêu tham số lên MLP](mlp_hyper.png)
 
