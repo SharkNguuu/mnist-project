@@ -189,7 +189,7 @@ Cấu hình cuối cùng là 512 nơ-ron, η = 0,3 (batch 128, 20 epoch), đư�
 
 ### 9.1. Cây quyết định
 
-**Mô hình.** Mỗi cây là một cây nhị phân. Nút trong hỏi "pixel j có sáng không", với pixel đã nhị phân hoá x_j = 1[pixel > 0,5]; nhánh x_j = 0 đi trái, x_j = 1 đi phải. Việc nhị phân hoá phù hợp với dữ liệu vì khoảng 80,9% pixel bằng 0 (mục 2), nhưng ngưỡng 0,5 là lựa chọn thiết kế, không được tối ưu. Nhị phân hoá có cái giá: với cây độ sâu 12 của sklearn, accuracy validation là 87,2% trên pixel gốc và 84,14% trên pixel nhị phân, tức giảm khoảng 3,1 điểm phần trăm. Chúng tôi chấp nhận đánh đổi này để đếm lớp của mọi pixel bằng một phép nhân ma trận (xem bên dưới); chưa đo ảnh hưởng tương ứng đối với rừng.
+**Mô hình.** Mỗi cây là một cây nhị phân. Nút trong hỏi "pixel j có sáng không", với pixel đã nhị phân hoá x_j = 1[pixel > 0,5]; nhánh x_j = 0 đi trái, x_j = 1 đi phải. Việc nhị phân hoá phù hợp với dữ liệu vì khoảng 80,9% pixel bằng 0 (mục 2), nhưng ngưỡng 0,5 là lựa chọn thiết kế, không được tối ưu. Nhị phân hoá có cái giá: với cây độ sâu 12 của sklearn, accuracy validation là 87,2% trên pixel gốc và 84,14% trên pixel nhị phân, tức giảm khoảng 3,1 điểm phần trăm. Chúng tôi chấp nhận đánh đổi này để đếm lớp của mọi pixel bằng một phép nhân ma trận (xem bên dưới); ở cấp độ rừng (61 cây, độ sâu 20), sklearn đạt 96,8% trên pixel gốc và 96,1% trên pixel nhị phân, tức giảm khoảng 0,7 điểm (xem mục 9.2)
 
 **Tiêu chí tách.** Gini của một nút: G = 1 − Σ_c p_c². Với cách tách thành nhánh trái (n_L mẫu) và phải (n_R mẫu), độ tạp sau tách là G_tách = (n_L·G_L + n_R·G_R) / n. Mỗi nút chọn pixel có G_tách nhỏ nhất, và chỉ tách nếu G_tách nhỏ hơn Gini của nút cha.
 
@@ -228,3 +228,47 @@ Từ độ sâu 2 đến 8, accuracy của train và validation tăng gần như
 Độ sâu tốt nhất theo validation là 20 (85,24%), nhưng độ sâu 16, 20 và 30 chênh nhau không quá 0,12 điểm, nhỏ hơn sai số chuẩn khoảng 0,35 điểm của một phép đo accuracy trên 10.000 ảnh (tính theo √(p(1−p)/n)), nên không phân biệt được. Giá trị này chỉ dùng làm tham chiếu cho rừng ở mục 9.2. Một cây đơn tốt nhất đạt 85,24%, cao hơn các Naïve Bayes (tốt nhất 83,53%) nhưng thấp hơn softmax regression (92,02%) và MLP.
 
 ![Ảnh hưởng của độ sâu lên một cây quyết định](tree_depth.png)
+### 9.2. Rừng ngẫu nhiên
+
+**Mô hình.** Rừng gồm T cây quyết định (mục 9.1). Mỗi cây được huấn luyện trên một mẫu bootstrap: N mẫu rút có hoàn lại từ tập train, nên mỗi cây thấy khoảng 63% số mẫu khác nhau. Ở mỗi nút, cây chỉ xét ngẫu nhiên m = ⌊√784⌋ = 28 pixel để tìm cách tách. Dự đoán của rừng là lớp có xác suất trung bình lớn nhất, với xác suất của mỗi cây là tỉ lệ các lớp ở lá mà mẫu rơi vào (bỏ phiếu mềm). Lấy trung bình nhiều cây ít tương quan giúp giảm phương sai của một cây sâu, vốn quá khớp mạnh (mục 9.1).
+
+**Pseudocode.**
+
+    hàm HUẤN_LUYỆN_RỪNG(X, y, T, max_depth, m):
+        với t = 1..T:
+            S_t ← N mẫu rút có hoàn lại từ (X, y)
+            cây_t ← XÂY_CÂY(S_t, max_depth), mỗi nút chỉ xét m pixel chọn ngẫu nhiên
+        trả về {cây_1, ..., cây_T}
+
+    hàm DỰ_ĐOÁN(x):
+        P ← (1/T) Σ_t xác_suất_lớp(cây_t, x)
+        trả về argmax_c P_c
+
+**Kiểm chứng.** (i) Rừng một cây, không bootstrap, xét mọi pixel cho dự đoán trùng 100% với `DecisionTree` trên validation. (ii) Xác suất dự đoán của rừng cộng bằng 1. (iii) Với 30 cây, độ sâu 12, 28 pixel mỗi nút: accuracy validation của chúng tôi là 94,00% và của `RandomForestClassifier` là 93,84%; chênh lệch 0,16 điểm nhỏ hơn sai số chuẩn khoảng 0,24 điểm của một phép đo trên 10.000 ảnh. Dự đoán của hai rừng trùng 95,79% (tức 4,21% ảnh bị dự đoán khác), vì hai rừng khác nhau về các lần rút ngẫu nhiên. Cấu hình này cho đúng 94,00% ở thí nghiệm A (cùng seed), nên kết quả tái lặp được. Hai cài đặt cũng khác nhau ở một điểm đã biết: khi 28 pixel được rút ở một nút đều không tách được, cài đặt của chúng tôi dừng ở nút đó, còn sklearn rút tiếp đến khi tìm được cách tách hợp lệ; chúng tôi chưa đo ảnh hưởng của khác biệt này.
+
+**Thiết kế thí nghiệm.** Chúng tôi quét từng siêu tham số: (A) max_depth ∈ {8, 12, 16, 20, 30} với 30 cây (seed 0); (B) số cây từ 1 đến 100 ở độ sâu đã chọn (seed 1), huấn luyện một lần và đánh giá rừng gồm k cây đầu (hợp lệ vì seed và mẫu bootstrap của mỗi cây không phụ thuộc vào tổng số cây). Mỗi thí nghiệm chỉ chạy một seed nên không có độ lệch chuẩn giữa các lần chạy; thay vào đó, quy tắc chọn được đặt trước là: chọn giá trị nhỏ nhất có accuracy validation nằm trong một sai số chuẩn √(p(1−p)/n) (n = 10.000 ảnh validation) của giá trị tốt nhất. Hai tham số được chọn lần lượt chứ không đồng thời, và với hai seed khác nhau. Mọi lựa chọn chỉ dựa trên tập validation. Kiểm chứng: rừng 61 cây đầu của rừng 100 cây cho 96,15% validation, trùng với rừng 61 cây huấn luyện riêng
+
+**Kết quả A (độ sâu).** "Cây đơn" là accuracy validation trung bình của từng cây trong rừng 30 cây khi dùng riêng.
+
+| max_depth | Rừng val (%) | Cây đơn val, trung bình (%) | Rừng train (%) | Train − val của rừng (điểm) |
+|---|---|---|---|---|
+| 8 | 89,03 | 64,26 | 89,92 | 0,89 |
+| 12 | 94,00 | 75,27 | 97,15 | 3,15 |
+| 16 | 95,40 | 78,29 | 99,56 | 4,16 |
+| 20 | 95,63 | 78,63 | 99,89 | 4,26 |
+| 30 | 95,79 | 78,59 | 99,99 | 4,20 |
+
+Accuracy validation của rừng tăng nhanh đến độ sâu 16 (từ 89,03% lên 95,40%, tăng 6,37 điểm từ độ sâu 8 đến 16) rồi chậm dần: tăng thêm 0,23 điểm từ 16 lên 20 và 0,16 điểm từ 20 lên 30, cùng cỡ sai số chuẩn (0,20 điểm). Rừng hơn cây đơn trung bình từ 17,00 đến 24,77 điểm ở mọi độ sâu. Ở độ sâu 20, khoảng cách train − validation của cây đơn ở mục 9.1 là 13,67 điểm, còn của rừng là 4,26 điểm, dù train accuracy của rừng gần 100% (99,89%): rừng khớp gần hết tập train nhưng tổng quát tốt hơn nhiều. Cây đơn trong rừng (78,63% ở độ sâu 20) yếu hơn cây đơn ở mục 9.1 (85,24% ở cùng độ sâu). Có thể do mỗi cây chỉ thấy khoảng 63% số mẫu khác nhau, chỉ xét 28 pixel mỗi nút, và dừng sớm ở những nút không có cách tách hợp lệ trong 28 pixel được rút; chúng tôi chưa tách riêng đóng góp của từng yếu tố. Accuracy cao nhất là 95,79% ở độ sâu 30, sai số chuẩn 0,20 điểm nên ngưỡng là 95,59%; độ sâu 20 (95,63%) vượt ngưỡng còn độ sâu 16 (95,40%) thì không. Theo quy tắc, độ sâu được chọn là **20**.
+
+**Kết quả B (số cây).** Ở max_depth = 20, huấn luyện 100 cây một lần:
+
+| Số cây | 1 | 5 | 10 | 20 | 30 | 50 | 75 | 100 |
+|---|---|---|---|---|---|---|---|---|
+| Val (%) | 79,00 | 90,22 | 93,60 | 95,21 | 95,80 | 96,03 | 96,18 | 96,28 |
+
+Mức tăng giữa các mốc liên tiếp lần lượt là 11,22; 3,38; 1,61; 0,59; 0,23; 0,15 và 0,10 điểm phần trăm: accuracy tăng rất nhanh đến khoảng 20 cây rồi gần như đi ngang. Một cây đơn đạt trung bình 78,70% (thấp nhất 77,27%, cao nhất 79,69%), còn rừng 100 cây đạt 96,28%, hơn 17,58 điểm. Theo quy tắc, số cây ít nhất có accuracy nằm trong một sai số chuẩn (khoảng 0,19 điểm) của accuracy tốt nhất là **61**. Đường cong rất phẳng từ khoảng 40 cây (50 cây đạt 96,03%, chỉ kém ngưỡng khoảng 0,06 điểm), nên con số 61 phụ thuộc vào quy tắc và các giá trị từ khoảng 50 cây trở lên gần như tương đương.
+
+**Cấu hình cuối cùng.** 61 cây, max_depth = 20, 28 pixel mỗi nút, pixel nhị phân hoá ở ngưỡng 0,5, seed 1. Accuracy train 99,91% và validation 96,15% (precision macro 96,11%, recall macro 96,11%, F1 macro 96,11%); validation thấp hơn 0,13 điểm so với rừng 100 cây (96,28%), nhỏ hơn sai số chuẩn nên phù hợp với quy tắc chọn. Đối chiếu `RandomForestClassifier` cùng cấu hình (61 cây, độ sâu 20, 28 pixel mỗi nút): validation 96,10% trên pixel nhị phân, so với 96,15% của chúng tôi (chênh 0,05 điểm, nhỏ hơn sai số chuẩn). Trên pixel gốc, sklearn đạt 96,8%, tức nhị phân hoá làm giảm khoảng 0,7 điểm ở cấp độ rừng; con số này khác cây đơn ở mục 9.1 (khoảng 3,1 điểm ở độ sâu 12), nhưng hai phép đo khác độ sâu và số cây nên chúng tôi không kết luận được rằng việc lấy trung bình nhiều cây làm giảm tổn thất do nhị phân hoá. Về thời gian, một cây độ sâu 20 mất khoảng 1,2 s (30 cây mất 36 s, 100 cây mất 134 s); đây chỉ là số tham khảo, so sánh thống nhất giữa các mô hình được thực hiện ở mục so sánh. Theo accuracy validation, rừng (96,15%) cao hơn softmax regression (92,02%) khoảng 4,13 điểm, cao hơn Naïve Bayes tốt nhất (83,53%) khoảng 12,62 điểm và thấp hơn MLP đã chọn (97,86%) khoảng 1,71 điểm; kết quả trên tập test được báo cáo ở mục so sánh.
+
+![Ảnh hưởng của độ sâu lên rừng](forest_depth.png)
+![Ảnh hưởng của số cây](forest_trees.png)

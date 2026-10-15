@@ -96,3 +96,56 @@ class DecisionTree:
 
     def predict(self, Xb):
         return self.pred_[self.apply(Xb)]
+class RandomForest:
+    """Rừng ngẫu nhiên trên đặc trưng nhị phân: bagging + chọn ngẫu nhiên max_features pixel mỗi nút."""
+
+    def __init__(self, n_trees=50, max_depth=20, max_features="sqrt",
+                 min_samples_leaf=1, bootstrap=True, seed=0):
+        self.n_trees = n_trees
+        self.max_depth = max_depth
+        self.max_features = max_features        # "sqrt", None (mọi pixel) hoặc một số nguyên
+        self.min_samples_leaf = min_samples_leaf
+        self.bootstrap = bootstrap
+        self.seed = seed
+
+    def fit(self, Xb, y, n_classes=10):
+        y = np.asarray(y)
+        N, d = Xb.shape
+        if self.max_features == "sqrt":
+            mf = int(np.sqrt(d))                # 28 khi d = 784
+        elif self.max_features is None:
+            mf = d
+        else:
+            mf = int(self.max_features)
+        rng = np.random.default_rng(self.seed)
+        self.n_classes_ = n_classes
+        self.trees_ = []
+        for i in range(self.n_trees):
+            idx = rng.integers(0, N, N) if self.bootstrap else np.arange(N)   # rút có hoàn lại
+            tree = DecisionTree(max_depth=self.max_depth,
+                                min_samples_leaf=self.min_samples_leaf,
+                                max_features=mf, seed=self.seed * 100003 + i)
+            tree.fit(Xb[idx], y[idx], n_classes)
+            self.trees_.append(tree)
+        return self
+
+    def predict_proba(self, Xb, n_trees=None):
+        trees = self.trees_[:n_trees]
+        P = np.zeros((len(Xb), self.n_classes_))
+        for t in trees:
+            P += t.predict_proba(Xb)
+        return P / len(trees)
+
+    def predict(self, Xb, n_trees=None):
+        return self.predict_proba(Xb, n_trees).argmax(axis=1)
+
+    def staged_accuracy(self, Xb, y):
+        """Accuracy của rừng k cây (k = 1..n_trees) và của riêng từng cây, trong một lượt duyệt."""
+        P = np.zeros((len(Xb), self.n_classes_))
+        forest_acc, tree_acc = [], []
+        for t in self.trees_:
+            pt = t.predict_proba(Xb)
+            P += pt
+            forest_acc.append((P.argmax(axis=1) == y).mean())
+            tree_acc.append((pt.argmax(axis=1) == y).mean())
+        return np.array(forest_acc), np.array(tree_acc)
