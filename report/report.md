@@ -185,4 +185,46 @@ Khi η tăng từ 0,1 lên 0,3, accuracy validation tăng 0,47 điểm ở 128 n
 Cấu hình cuối cùng là 512 nơ-ron, η = 0,3 (batch 128, 20 epoch), được dùng để huấn luyện lại và đánh giá trên tập test ở mục so sánh.
 
 ![Ảnh hưởng của siêu tham số lên MLP](mlp_hyper.png)
+## 9. Random Forest
 
+### 9.1. Cây quyết định
+
+**Mô hình.** Mỗi cây là một cây nhị phân. Nút trong hỏi "pixel j có sáng không", với pixel đã nhị phân hoá x_j = 1[pixel > 0,5]; nhánh x_j = 0 đi trái, x_j = 1 đi phải. Việc nhị phân hoá phù hợp với dữ liệu vì khoảng 80,9% pixel bằng 0 (mục 2), nhưng ngưỡng 0,5 là lựa chọn thiết kế, không được tối ưu. Nhị phân hoá có cái giá: với cây độ sâu 12 của sklearn, accuracy validation là 87,2% trên pixel gốc và 84,14% trên pixel nhị phân, tức giảm khoảng 3,1 điểm phần trăm. Chúng tôi chấp nhận đánh đổi này để đếm lớp của mọi pixel bằng một phép nhân ma trận (xem bên dưới); chưa đo ảnh hưởng tương ứng đối với rừng.
+
+**Tiêu chí tách.** Gini của một nút: G = 1 − Σ_c p_c². Với cách tách thành nhánh trái (n_L mẫu) và phải (n_R mẫu), độ tạp sau tách là G_tách = (n_L·G_L + n_R·G_R) / n. Mỗi nút chọn pixel có G_tách nhỏ nhất, và chỉ tách nếu G_tách nhỏ hơn Gini của nút cha.
+
+**Tính toán vector hoá.** Với đặc trưng nhị phân, số mẫu của từng lớp ở nhánh phải của mọi pixel là R = XᵀY (X: n×784 nhị phân, Y: n×10 one-hot); số đếm nhánh trái là L = T − R với T là số đếm lớp của nút. Dùng n·G = n − Σ_c (đếm_c)² / n, ta tính G_tách cho cả 784 pixel chỉ bằng một phép nhân ma trận và vài phép tính theo mảng, không dùng vòng lặp qua pixel hay mẫu.
+
+**Pseudocode.**
+
+    hàm XÂY_CÂY(tập mẫu S, độ sâu h):
+        nếu h = max_depth, hoặc S thuần, hoặc |S| quá nhỏ: trả về lá (lớp đa số của S)
+        R ← X_Sᵀ Y_S ;  L ← T − R
+        tính G_tách của mọi pixel; chọn pixel j* nhỏ nhất
+        nếu G_tách(j*) ≥ Gini(S): trả về lá
+        S_trái ← {mẫu có x_j* = 0} ;  S_phải ← {mẫu có x_j* = 1}
+        trả về nút (j*, XÂY_CÂY(S_trái, h+1), XÂY_CÂY(S_phải, h+1))
+
+**Kiểm chứng.** (i) Ví dụ tính tay với 4 mẫu: (0, 0.0) 0 [0 0 1 1]. (ii) Cây một tầng: pixel gốc là 350 ở cài đặt của chúng tôi và 350 ở sklearn, dự đoán trùng 100% trên validation. (iii) Cây độ sâu 12: accuracy validation của chúng tôi là 84,04% và của sklearn là 84,14%; Cây độ sâu 6: accuarary validation của chúng tôi là 68,37% và của sklearn là 68,37%. Cây sâu có thể không trùng hoàn toàn vì khi hai pixel cho cùng G_tách thì thứ tự chọn của hai cài đặt khác nhau, nên mức khớp chặt nhất được kiểm chứng ở cây một tầng.
+
+**Kết quả một cây (max_depth = 12).** Accuracy trên train là 91,57% và trên validation là 84,04%. Các độ đo macro trên train: precision 91,59%, recall 91,48%, F1 91,51%; trên validation: precision 83,89%, recall 83,78%, F1 83,79%. Cây có 3.783 nút và 1.892 lá. Thời gian huấn luyện 0,9 s và dự đoán 0,005 s trên 10.000 ảnh; như đã nêu ở mục 8, thời gian đo trên máy này không lặp lại ổn định, nên các con số này chỉ mang tính tham khảo và so sánh thống nhất được thực hiện ở mục so sánh.
+
+**Ảnh hưởng của max_depth.**
+
+| max_depth | Train (%) | Validation (%) | Train − validation (điểm) | Số lá |
+|---|---|---|---|---|
+| 2 | 32,23 | 33,05 | −0,82 | 4 |
+| 4 | 54,18 | 54,00 | 0,18 | 16 |
+| 6 | 68,87 | 68,37 | 0,50 | 64 |
+| 8 | 78,71 | 77,17 | 1,54 | 252 |
+| 10 | 85,92 | 81,66 | 4,26 | 847 |
+| 12 | 91,57 | 84,04 | 7,53 | 1.892 |
+| 16 | 97,45 | 85,12 | 12,33 | 3.503 |
+| 20 | 98,91 | 85,24 | 13,67 | 4.076 |
+| 30 | 99,71 | 85,23 | 14,48 | 4.465 |
+
+Từ độ sâu 2 đến 8, accuracy của train và validation tăng gần như song song và khoảng cách giữa chúng nhỏ (dưới 1,6 điểm), tức cây còn quá đơn giản. Ở độ sâu 2, cây chỉ có 4 lá nên chỉ dự đoán được tối đa 4 trong 10 chữ số, giải thích vì sao accuracy chỉ khoảng 33%. Từ độ sâu 10, hai đường tách ra: train tiếp tục tăng đến 99,71% ở độ sâu 30, trong khi validation đi ngang ở khoảng 85,2% từ độ sâu 16 trở đi (85,12%, 85,24%, 85,23%). Khoảng cách train − validation tăng từ 4,26 điểm (độ sâu 10) lên 14,48 điểm (độ sâu 30), tức cây quá khớp khi mọc sâu. Số lá bằng đúng 2^h đến độ sâu 6, và từ độ sâu 10 trở đi ít hơn nhiều so với 2^h (ví dụ 1.892 lá ở độ sâu 12 so với 4.096), vì nhiều nhánh dừng sớm khi nút đã thuần hoặc không giảm được Gini. Train accuracy ở độ sâu 30 là 99,71% chứ không phải 100%; chúng tôi chưa xác định nguyên nhân (một khả năng là có những ảnh nhị phân hoá giống hệt nhau nhưng khác nhãn).
+
+Độ sâu tốt nhất theo validation là 20 (85,24%), nhưng độ sâu 16, 20 và 30 chênh nhau không quá 0,12 điểm, nhỏ hơn sai số chuẩn khoảng 0,35 điểm của một phép đo accuracy trên 10.000 ảnh (tính theo √(p(1−p)/n)), nên không phân biệt được. Giá trị này chỉ dùng làm tham chiếu cho rừng ở mục 9.2. Một cây đơn tốt nhất đạt 85,24%, cao hơn các Naïve Bayes (tốt nhất 83,53%) nhưng thấp hơn softmax regression (92,02%) và MLP.
+
+![Ảnh hưởng của độ sâu lên một cây quyết định](tree_depth.png)
