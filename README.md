@@ -30,6 +30,9 @@ pip install -r requirements.txt
 ```
 
 Lần chạy đầu tiên cần internet: `data.py` tải MNIST (OpenML) và lưu vào `data/mnist.npz`.
+Các mô hình của giao diện được huấn luyện khi cần lần đầu (lần đầu có thể mất vài phút) và lưu
+cục bộ trong `.model_cache/`; những lần chạy sau sẽ nạp lại mô hình thay vì huấn luyện lại.
+Xóa thư mục này nếu muốn huấn luyện lại.
 
 ## Cấu trúc
 
