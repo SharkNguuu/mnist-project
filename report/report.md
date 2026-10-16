@@ -272,3 +272,105 @@ Mức tăng giữa các mốc liên tiếp lần lượt là 11,22; 3,38; 1,61; 
 
 ![Ảnh hưởng của độ sâu lên rừng](forest_depth.png)
 ![Ảnh hưởng của số cây](forest_trees.png)
+## 10. So sánh và thảo luận
+
+**Cấu hình.** Mọi mô hình huấn luyện trên 50.000 ảnh train với cấu hình chọn bằng validation: Gaussian NB (var_smoothing = 0,1), Multinomial NB (α = 1e-4), Bernoulli NB (α = 1e-3), softmax regression (η = 0,1, 30 epoch, batch 128), MLP (512 nơ-ron, η = 0,3, 20 epoch, batch 128), Random Forest (61 cây, max_depth = 20, 28 pixel mỗi nút, pixel nhị phân hoá ở 0,5). Tập test được đánh giá đúng một lần và không dùng để chọn bất kỳ siêu tham số nào. Mỗi mô hình chỉ chạy một seed nên số liệu test còn sai số lấy mẫu; sai số chuẩn của accuracy trên 10.000 ảnh test là 0,14 điểm (MLP) đến 0,39 điểm (Gaussian NB) tuỳ mức accuracy. Bốn phương pháp so sánh chính theo đề là: Bernoulli NB (biến thể NB có validation cao nhất), softmax regression, MLP và Random Forest; hai biến thể NB còn lại nằm trong bảng đầy đủ.
+
+**Kết quả.**
+
+| Mô hình | Train acc (%) | Val acc (%) | Test acc (%) | Test F1 macro (%) | Train − test (điểm) |
+|---|---|---|---|---|---|
+| Gaussian NB | 80,29 | 79,78 | 81,59 | 81,44 | −1,30 |
+| Multinomial NB | 82,55 | 82,38 | 83,74 | 83,60 | −1,19 |
+| Bernoulli NB | 83,82 | 83,53 | 84,50 | 84,32 | −0,68 |
+| Softmax regression | 92,87 | 92,02 | 92,31 | 92,20 | 0,56 |
+| MLP | 99,95 | 97,85 | 98,13 | 98,12 | 1,82 |
+| Random Forest | 99,91 | 96,15 | 96,21 | 96,17 | 3,70 |
+
+Bảng đầy đủ accuracy, precision (macro), recall (macro) và F1 (macro):
+
+| Mô hình | Tập | Accuracy | Precision | Recall | F1 |
+|---|---|---|---|---|---|
+| Gaussian NB | train | 80,29 | 81,92 | 79,91 | 80,14 |
+| Gaussian NB | val | 79,78 | 81,55 | 79,30 | 79,58 |
+| Gaussian NB | test | 81,59 | 83,20 | 81,23 | 81,44 |
+| Multinomial NB | train | 82,55 | 83,24 | 82,27 | 82,43 |
+| Multinomial NB | val | 82,38 | 83,00 | 82,02 | 82,21 |
+| Multinomial NB | test | 83,74 | 84,45 | 83,44 | 83,60 |
+| Bernoulli NB | train | 83,82 | 83,94 | 83,57 | 83,66 |
+| Bernoulli NB | val | 83,53 | 83,57 | 83,21 | 83,29 |
+| Bernoulli NB | test | 84,50 | 84,57 | 84,25 | 84,32 |
+| Softmax | train | 92,87 | 92,79 | 92,78 | 92,78 |
+| Softmax | val | 92,02 | 91,92 | 91,90 | 91,90 |
+| Softmax | test | 92,31 | 92,21 | 92,21 | 92,20 |
+| MLP | train | 99,95 | 99,95 | 99,95 | 99,95 |
+| MLP | val | 97,85 | 97,83 | 97,84 | 97,83 |
+| MLP | test | 98,13 | 98,13 | 98,12 | 98,12 |
+| Random Forest | train | 99,91 | 99,91 | 99,91 | 99,91 |
+| Random Forest | val | 96,15 | 96,11 | 96,11 | 96,11 |
+| Random Forest | test | 96,21 | 96,17 | 96,18 | 96,17 |
+
+**Thứ hạng và độ tin cậy.** Trên test, thứ hạng từ cao xuống thấp là MLP (98,13%), Random Forest (96,21%), softmax (92,31%), Bernoulli NB (84,50%), Multinomial NB (83,74%), Gaussian NB (81,59%). Khoảng tin cậy xấp xỉ 95% của accuracy test (±1,96 sai số chuẩn) là ±0,27 điểm (MLP), ±0,37 (RF), ±0,52 (softmax), ±0,71 (Bernoulli NB), ±0,72 (Multinomial NB), ±0,76 (Gaussian NB). Chênh lệch giữa các nhóm lớn hơn nhiều so với nhiễu này: MLP hơn RF 1,92 điểm, RF hơn softmax 3,90 điểm, softmax hơn Bernoulli NB 7,81 điểm. Để so sánh ghép cặp hai mô hình tốt nhất trên cùng 10.000 ảnh test, chúng tôi dùng kiểm định McNemar chính xác (kiểm định dấu trên các ảnh mà hai mô hình khác nhau về đúng/sai): có 246 ảnh MLP đúng mà RF sai và 54 ảnh MLP sai mà RF đúng (hiệu 192 ảnh, khớp với chênh lệch accuracy 1,92 điểm), p ≈ 2×10⁻³⁰. Kiểm định này chỉ tính nhiễu do việc chọn tập ảnh test; mỗi mô hình mới huấn luyện một seed nên nó không phản ánh biến động giữa các lần huấn luyện. Ngược lại, chênh lệch giữa Bernoulli NB và Multinomial NB (0,76 điểm) cùng cỡ khoảng tin cậy của mỗi mô hình, nên chúng tôi không kết luận được biến thể nào tốt hơn. Precision và recall (macro) lệch nhau đáng kể chỉ ở Naïve Bayes (precision cao hơn recall 1,97 điểm ở Gaussian NB, 1,01 ở Multinomial NB và 0,32 ở Bernoulli NB trên test); ở softmax, MLP và Random Forest hiệu này không quá 0,01 điểm.
+
+**Test so với validation và train.** Test cao hơn validation ở cả 6 mô hình, với mức chênh +1,81 (Gaussian NB), +1,36 (Multinomial NB), +0,97 (Bernoulli NB), +0,29 (softmax), +0,28 (MLP) và +0,06 điểm (RF). Ở softmax, MLP và RF mức chênh nằm trong nhiễu lấy mẫu; ở ba mô hình Naïve Bayes mức chênh lớn hơn nhiều sai số chuẩn của hiệu hai phép đo (khoảng 0,5 điểm). Ở Naïve Bayes, accuracy test còn cao hơn cả accuracy train (khoảng cách train − test âm, từ −0,68 đến −1,30 điểm), nên cấu hình được chọn bằng validation không thể là nguyên nhân: việc chọn cấu hình trên validation làm validation cao hơn thực tế, tức đẩy chênh lệch test − validation về phía âm, ngược với dữ liệu. Điều này gợi ý tập test dễ hơn tập train và validation. Để tìm hiểu, chúng tôi chia tập test làm hai nửa 5.000 ảnh theo thứ tự trong tập dữ liệu và tính accuracy riêng cho từng nửa. Phép chia này chỉ để mô tả, không dùng để chọn hay chỉnh bất kỳ thứ gì.
+
+| Mô hình | Acc 5.000 ảnh đầu (%) | Acc 5.000 ảnh sau (%) | Sau − đầu (điểm) |
+|---|---|---|---|
+| Gaussian NB | 76,08 | 87,10 | 11,02 |
+| Multinomial NB | 79,54 | 87,94 | 8,40 |
+| Bernoulli NB | 80,00 | 89,00 | 9,00 |
+| Softmax | 90,24 | 94,38 | 4,14 |
+| MLP | 97,28 | 98,98 | 1,70 |
+| Random Forest | 94,64 | 97,78 | 3,14 |
+
+Ở cả sáu mô hình, nửa đầu thấp hơn validation (ví dụ MLP 97,28% so với 97,85%, Gaussian NB 76,08% so với 79,78%) còn nửa sau cao hơn validation (MLP 98,98%, Gaussian NB 87,10%). Hiệu giữa hai nửa từ 1,70 điểm (MLP) đến 11,02 điểm (Gaussian NB), bằng khoảng 6 đến 14 lần sai số chuẩn của hiệu hai nửa (0,27 đến 0,77 điểm, tính xấp xỉ bằng cách coi hai nửa là hai mẫu độc lập). Thứ hạng của sáu mô hình giống hệt nhau ở cả hai nửa. Do đó tập test không đồng nhất về độ khó: nửa sau dễ hơn nhiều so với train và validation, còn nửa đầu khó hơn, và accuracy chung của test cao hơn validation vì nửa sau vượt validation nhiều hơn mức nửa đầu thấp hơn (ví dụ MLP: +1,13 so với −0,57 điểm). Chúng tôi chưa xác định được nguyên nhân khiến hai nửa khác nhau, chẳng hạn do thứ tự hay nguồn gốc ảnh trong tập dữ liệu, nên không suy đoán thêm.  Khoảng cách train − test thể hiện mức quá khớp: softmax chỉ 0,56 điểm, MLP 1,82 điểm, và Random Forest lớn nhất với 3,70 điểm (train 99,91% nhưng test 96,21%), phù hợp với việc cây đã khớp gần như toàn bộ tập train (mục 9). Dù vậy RF vẫn tổng quát hoá tốt hơn softmax 3,90 điểm, nên khoảng cách train − test lớn không đồng nghĩa với kết quả test kém.
+
+**Confusion matrix.** Hình dưới là ma trận chuẩn hoá theo hàng (mỗi hàng là recall của một chữ số). Ba cặp bị nhầm nhiều nhất trên test (thật → dự đoán: số ảnh):
+
+| Mô hình | Ba cặp nhầm nhiều nhất |
+|---|---|
+| Gaussian NB | 4→9: 272; 5→3: 93; 7→9: 86 |
+| Multinomial NB | 4→9: 173; 5→3: 104; 5→8: 79 |
+| Bernoulli NB | 4→9: 133; 5→3: 104; 8→3: 67 |
+| Softmax | 9→4: 40; 2→8: 37; 5→8: 32 |
+| MLP | 9→4: 8; 7→2: 8; 4→9: 7 |
+| Random Forest | 7→2: 22; 4→9: 21; 3→5: 16 |
+
+Cặp chữ số 4 và 9 nằm trong ba cặp nhầm nhiều nhất của cả sáu mô hình (4→9 ở năm mô hình, 9→4 ở softmax và MLP), nên đây là cặp khó nhất với mọi họ mô hình ở các cấu hình này; một lý do có thể là chữ 4 viết hở phía trên dễ giống chữ 9 (chưa kiểm chứng). Cặp 3 và 5 xuất hiện ở bốn mô hình (5→3 ở ba biến thể NB, 3→5 ở RF). Lỗi của Naïve Bayes tập trung hơn: cặp nhầm lớn nhất chiếm 14,8% số lỗi của Gaussian NB (272 trên 1.841), 10,6% ở Multinomial NB (173 trên 1.626) và 8,6% ở Bernoulli NB (133 trên 1.550), trong khi ở softmax, MLP và RF cặp lớn nhất chỉ chiếm 5,2% (40 trên 769), 4,3% (8 trên 187) và 5,8% (22 trên 379). Điều này gợi ý giả định độc lập giữa các pixel gây ra những nhầm lẫn mang tính hệ thống, nhưng chúng tôi chưa kiểm chứng. Trên ma trận của Gaussian NB, ô đường chéo nhạt nhất là của chữ số 4 và 5 (đọc từ hình), tức hai chữ số này bị bỏ sót nhiều nhất.
+
+![Confusion matrix trên test](confusion_test_all.png)
+
+**Thời gian.** Mỗi mô hình được huấn luyện 3 lần theo 3 vòng xen kẽ (cả 6 mô hình chạy lần lượt trong mỗi vòng) sau một lượt khởi động không tính giờ; thời gian dự đoán đo trên 10.000 ảnh validation. Thời gian huấn luyện tính cả khởi tạo, và thời gian dự đoán của Random Forest tính cả bước nhị phân hoá. Máy: Windows 11, bộ xử lý Intel64 Family 6 Model 170 (22 luồng logic), Python 3.13.0, NumPy 2.5.3. Chúng tôi báo cáo trung vị kèm khoảng min–max (số liệu từng vòng nằm trong `results/timing.json`).
+
+| Mô hình | Huấn luyện: trung vị (min–max), s | Dự đoán 10.000 ảnh: trung vị (min–max), s |
+|---|---|---|
+| Gaussian NB | 0,45 (0,42–0,55) | 0,646 (0,578–0,765) |
+| Multinomial NB | 5,15 (1,66–6,92) | 0,021 (0,020–0,023) |
+| Bernoulli NB | 5,58 (2,05–5,87) | 0,024 (0,023–0,024) |
+| Softmax regression | 3,37 (3,34–3,77) | 0,003 (0,003–0,006) |
+| MLP | 264,14 (196,62–328,46) | 0,032 (0,032–0,036) |
+| Random Forest | 83,76 (77,76–97,92) | 0,328 (0,309–0,470) |
+
+Tỉ lệ max/min của thời gian huấn luyện vượt 1,5 ở ba mô hình: Multinomial NB (6,92 s so với 1,66 s, gấp 4,2 lần), Bernoulli NB (5,87 s so với 2,05 s, gấp 2,9 lần) và MLP (328,46 s so với 196,62 s, gấp 1,7 lần); ở thời gian dự đoán là Random Forest (1,52) và softmax (2,0, nhưng chỉ chênh 3 ms). Chúng tôi chưa xác định được nguyên nhân dù cùng một máy, cùng cấu hình và cùng thứ tự chạy. Vì vậy chỉ những so sánh mà khoảng min–max không giao nhau được xem là đáng tin:
+- Huấn luyện: Gaussian NB nhanh nhất (tối đa 0,55 s, thấp hơn tối thiểu của mọi mô hình còn lại). Multinomial NB, Bernoulli NB và softmax (vài giây) có các khoảng giao nhau nên không xếp hạng được. Random Forest chậm hơn nhóm ba mô hình đó ít nhất 11 lần. MLP chậm hơn Random Forest ít nhất 2,0 lần (trung vị 3,15 lần) và chậm hơn softmax khoảng 78 lần theo trung vị.
+- Dự đoán: softmax nhanh nhất (0,003 đến 0,006 s); Multinomial NB, Bernoulli NB (khoảng 0,02 s) và MLP (khoảng 0,03 s) cùng cỡ vài chục mili giây; Random Forest chậm hơn MLP ít nhất 8,6 lần (trung vị 10,3 lần). Gaussian NB chậm nhất khi dự đoán (0,578 đến 0,765 s, không giao với khoảng của Random Forest) dù huấn luyện nhanh nhất. Nhiều khả năng do cách cài đặt: Gaussian NB tính (x − μ)²/σ² cho từng lớp trên mảng 5.000 × 784 kiểu float64, còn hai biến thể kia dự đoán bằng một phép nhân ma trận; chúng tôi chưa đo riêng điều này.
+
+Các con số thời gian ở mục 4 đến 9 được đo ở các thời điểm khác nhau nên không so sánh được với nhau; bảng trên là phép đo thống nhất.
+
+**Ưu và nhược điểm.**
+
+| Tiêu chí | Naïve Bayes (Bernoulli) | Softmax regression | MLP | Random Forest |
+|---|---|---|---|---|
+| Accuracy test (%) | 84,50 | 92,31 | 98,13 | 96,21 |
+| Số tham số | 7.850 (784 × 10 xác suất và 10 prior) | 7.850 | 407.050 | 61 cây, độ sâu tối đa 20 |
+| Huấn luyện, trung vị (s) | 5,58 (không ổn định) | 3,37 | 264,14 | 83,76 |
+| Dự đoán 10.000 ảnh, trung vị (s) | 0,024 | 0,003 | 0,032 | 0,328 |
+
+- **Naïve Bayes.** Thấp nhất ở cả ba biến thể (81,59% đến 84,50%) vì giả định độc lập có điều kiện giữa các pixel không đúng với ảnh chữ số (mục 4). Gaussian NB rất nhạy với hệ số làm mịn (validation từ 57,60% lên 79,78% khi tăng var_smoothing), trong khi Multinomial và Bernoulli gần như không nhạy với α (biên độ dưới 0,5 điểm, mục 5). Ưu điểm: huấn luyện chỉ cần đếm một lượt qua dữ liệu (Gaussian NB mất 0,45 s), và mỗi tham số là xác suất của một pixel theo một lớp nên đọc được. Nhược điểm: lỗi tập trung ở vài cặp chữ số (4→9, 5→3), và dự đoán của Gaussian NB chậm nhất trong sáu mô hình theo cách cài đặt hiện tại.
+- **Softmax regression.** Đạt 92,31% chỉ với 7.850 tham số, huấn luyện 3,37 s, dự đoán 0,003 s, và khoảng cách train − test chỉ 0,56 điểm nên ít quá khớp. Giới hạn là biên quyết định tuyến tính: MLP hơn 5,82 điểm. Mỗi cột của W là một ảnh 28×28 xem được trực tiếp; theo hình `softmax_weights.png`, chữ số 0 có vùng giữa màu xanh (hệ số âm) được bao quanh bởi vòng đỏ (hệ số dương) và chữ số 1 có sọc đỏ dọc ở giữa, còn các chữ số còn lại là hoạ tiết đỏ xanh lẫn lộn, khó đọc thành nét chữ. Như vậy khả năng giải thích có thật nhưng chỉ rõ với một số chữ số.
+- **MLP.** Chính xác nhất (98,13%), nhưng có 407.050 tham số (gấp khoảng 52 lần softmax), huấn luyện lâu nhất (264 s), khoảng cách train − test 1,82 điểm, và nhạy với learning rate (ở 128 nơ-ron, validation từ 93,11% khi η = 0,01 lên 97,69% khi η = 0,3, mục 8). Khó giải thích: 512 nơ-ron ẩn không có ý nghĩa trực quan như một cột của softmax. Bù lại, dự đoán nhanh (0,032 s).
+- **Random Forest.** 96,21%, đứng thứ hai. Mỗi cây đọc được như một chuỗi câu hỏi "pixel j có sáng không", nhưng rừng 61 cây thì khó đọc. Khoảng cách train − test lớn nhất (3,70 điểm). Dự đoán chậm hơn MLP khoảng 10 lần. Phải nhị phân hoá pixel để đếm bằng nhân ma trận, và việc này làm mất khoảng 0,7 điểm ở cấp độ rừng (mục 9.2).
+
+![Trọng số softmax](softmax_weights.png)
+
+**Kết luận so sánh.** MLP là mô hình chính xác nhất trên test (98,13%), hơn Random Forest 1,92 điểm (p ≈ 2×10⁻³⁰ theo McNemar), hơn softmax 5,82 điểm và hơn Bernoulli NB 13,63 điểm; cả ba mức chênh đều lớn hơn nhiều nhiễu lấy mẫu (khoảng tin cậy 95% từ ±0,27 đến ±0,71 điểm), nên thứ hạng giữa các nhóm đáng tin cậy, còn thứ hạng giữa các biến thể Naïve Bayes thì không. Đánh đổi nằm ở thời gian huấn luyện: MLP mất khoảng 264 s, gấp khoảng 3 lần Random Forest và khoảng 78 lần softmax theo trung vị, nhưng dự đoán nhanh hơn Random Forest khoảng 10 lần. Nếu cần huấn luyện và dự đoán rất nhanh kèm một mô hình có trọng số xem được, softmax (3,37 s, 0,003 s, 92,31%) là lựa chọn cân bằng; nếu ưu tiên độ chính xác và chấp nhận huấn luyện lâu, MLP; Naïve Bayes chỉ phù hợp làm mốc cơ sở vì thấp hơn MLP hơn 13 điểm. Các kết luận giới hạn ở một seed cho mỗi mô hình, ở cấu hình chọn bằng quét từng siêu tham số một (mục 8 và 9), và ở thời gian đo trên một máy có độ dao động chưa giải thích được.
