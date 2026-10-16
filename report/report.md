@@ -1,6 +1,20 @@
 # Báo cáo đồ án 1: Nhận dạng chữ số viết tay bằng các phương pháp phân lớp
+# Nhận dạng chữ số viết tay MNIST bằng các phương pháp phân lớp
 
-## 1. Dữ liệu
+Đồ án giữa kỳ, môn Nhận dạng, Khoa Toán-Tin học, Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM
+
+Nhóm: [Họ tên, MSSV của từng thành viên]
+Mã nguồn: [link GitHub]
+Ngày nộp: [ngày]
+
+## Giới thiệu
+
+Nhận dạng chữ số viết tay là bài toán phân lớp chuẩn để so sánh các phương pháp học máy. Chúng tôi dùng tập MNIST [1] gồm 70.000 ảnh xám 28×28 của các chữ số 0 đến 9 để cài đặt từ đầu và so sánh bốn nhóm bộ phân lớp: Naïve Bayes (ba biến thể Gaussian, Multinomial và Bernoulli [2]), softmax regression huấn luyện bằng gradient descent, mạng neuron nhiều lớp (MLP) huấn luyện bằng lan truyền ngược [3] với khởi tạo He [4], và Random Forest [5, 6]. Phần tính toán lõi của mọi mô hình được cài bằng NumPy [7]; scikit-learn [8] và PyTorch [9] chỉ dùng để tải dữ liệu và đối chiếu kết quả, đúng như đề cho phép.
+
+Các nội dung chính của báo cáo: (i) cài đặt và kiểm chứng từng mô hình (so với scikit-learn, đạo hàm số hoặc PyTorch); (ii) khảo sát ảnh hưởng của siêu tham số lên MLP và Random Forest bằng tập validation; (iii) đánh giá cuối cùng trên tập test, một lần duy nhất, kèm thời gian huấn luyện và dự đoán đo thống nhất; (iv) thảo luận ưu nhược điểm của từng phương pháp; (v) kiểm tra khả năng chuyển cấu hình sang Fashion-MNIST [10].
+
+Báo cáo gồm: dữ liệu và độ đo (mục 1 đến 3), các phương pháp và thí nghiệm (mục 4 đến 9), so sánh và thảo luận (mục 10), mở rộng sang Fashion-MNIST (mục 11), kết luận, khai báo sử dụng AI, phân công công việc và tài liệu tham khảo.
+## 1. Dữ liệu [1]
 
 MNIST gồm 70.000 ảnh xám kích thước 28×28 của các chữ số từ 0 đến 9, trong đó có 60.000 ảnh huấn luyện và 10.000 ảnh kiểm thử. Chúng tôi tách 10.000 ảnh từ tập huấn luyện làm tập validation bằng hoán vị ngẫu nhiên với seed cố định 42, nên mọi thí nghiệm dùng chung cách chia 50.000 (train) / 10.000 (validation) / 10.000 (test).
 
@@ -33,7 +47,7 @@ log P(c) − ½ Σ_i log(2π σ²_ci) − ½ Σ_i (x_i − μ_ci)² / σ²_ci
 
 ![Quét var_smoothing](gnb_var_smoothing.png)
 ![Confusion matrix GNB (validation)](gnb_confusion_val.png)
-## 5. Multinomial và Bernoulli Naïve Bayes
+## 5. Multinomial và Bernoulli Naïve Bayes [2]
 
 **Mô hình.** Multinomial NB coi giá trị pixel là số lần xuất hiện: θ_ci = (Σ x_i trong lớp c + α) / (Σ_i Σ x_i trong lớp c + α·d), và dự đoán chọn lớp cực đại hoá log P(c) + Σ_i x_i log θ_ci. Bernoulli NB nhị phân hoá pixel bằng ngưỡng 0,5, với p_ci = (số mẫu lớp c có pixel i sáng + α) / (số mẫu lớp c + 2α), và cực đại hoá log P(c) + Σ_i [x_i log p_ci + (1 − x_i) log(1 − p_ci)]. Cả hai đều dùng làm mịn Laplace với hệ số α để tránh log 0.
 
@@ -42,6 +56,21 @@ log P(c) − ½ Σ_i log(2π σ²_ci) − ½ Σ_i (x_i − μ_ci)² / σ²_ci
 **Nhận xét.** Accuracy của cả hai mô hình gần như không phụ thuộc vào α: trên toàn bộ khoảng α từ 1e-4 đến 10, Multinomial chỉ dao động từ 82,06% đến 82,38% (biên độ 0,32 điểm phần trăm) và Bernoulli từ 83,12% đến 83,53% (biên độ 0,41 điểm). Accuracy giảm rất nhẹ và đều khi α tăng, và đỉnh nằm ở α nhỏ (1e-4 đến 1e-3). Điều này trái với Gaussian NB, vốn rất nhạy với hệ số làm mịn (57,60% lên 79,78%). Một cách giải thích hợp lý là mỗi lớp có khoảng 5.000 mẫu nên số đếm của hầu hết pixel đủ lớn để α ≤ 10 gần như không đổi xác suất; α chỉ có tác dụng với số ít pixel hiếm khi sáng (vùng viền ảnh).
 
 Cả hai mô hình tốt hơn Gaussian NB sau khi đã tinh chỉnh (79,78%), với Bernoulli hơn khoảng 3,7 điểm và Multinomial hơn khoảng 2,6 điểm, vì giá trị pixel MNIST gần như nhị phân, nên mô hình "sáng hay tối" hợp với dữ liệu hơn phân phối chuẩn. Bernoulli cao hơn Multinomial khoảng 1 điểm, phù hợp với việc nó còn dùng thông tin từ các pixel tối (phạt khi pixel tối ở nơi lớp đó thường sáng), trong khi Multinomial chỉ khai thác pixel sáng. Chênh lệch train và validation nhỏ (dưới 0,3 điểm) cho thấy hai mô hình không quá khớp mà bị giới hạn bởi giả định độc lập có điều kiện giữa các pixel.
+**Pseudocode (Naïve Bayes).**
+
+    HUẤN_LUYỆN(X, y):
+        với mỗi lớp c:
+            prior_c ← (số mẫu thuộc lớp c) / N
+            Gaussian:  μ_c, σ²_c ← trung bình và phương sai từng pixel của lớp c;
+                       σ²_c ← σ²_c + ε
+            Multinomial: n_ci ← tổng giá trị pixel i trong lớp c;
+                       θ_ci ← (n_ci + α) / (Σ_i n_ci + α·d)
+            Bernoulli:   n_ci ← số mẫu lớp c có pixel i sáng (> 0,5);
+                       p_ci ← (n_ci + α) / (số mẫu lớp c + 2α)
+
+    DỰ_ĐOÁN(x):
+        với mỗi lớp c:  s_c ← log prior_c + Σ_i log P(x_i | c)
+        trả về argmax_c s_c
 
 ![Quét alpha](nb_alpha.png)
 ![Confusion matrix NB tốt nhất (validation)](nb_confusion_val.png)
@@ -83,7 +112,7 @@ Với η = 0,01, train loss cuối còn 0,3357, cao nhất trong các giá trị
 
 ![Quét learning rate](softmax_lr.png)
 ![Confusion matrix softmax (validation)](softmax_confusion_val.png)
-## 7. Mạng neuron nhiều lớp (MLP)
+## 7. Mạng neuron nhiều lớp (MLP) [3, 4]
 
 **Kiến trúc.** Mạng có một lớp ẩn 128 nơ-ron với hàm kích hoạt ReLU:
 
@@ -134,7 +163,19 @@ Số phần tử được tính sai số tương đối khi λ = 0 là 124 (W1),
 Kết quả cho thấy lan truyền ngược NumPy tính ra cùng giá trị với PyTorch đến sai số làm tròn, và mô hình đạt mức accuracy tương đương.
 
 **Huấn luyện.** Mini-batch gradient descent, batch 128, η = 0,1, 20 epoch, xáo trộn mẫu mỗi epoch. Accuracy validation tăng từ 90,59% (epoch 1) lên 97,19% (epoch 20), đạt cao nhất 97,20% ở epoch 19. Train loss giảm đều từ 0,3122 xuống 0,0534, trong khi validation loss giảm từ 0,3277 xuống 0,0961 (epoch 19) rồi tăng nhẹ lên 0,0996 (epoch 20). Khoảng cách giữa train loss (0,0534) và validation loss (0,0996) cho thấy mô hình bắt đầu quá khớp nhẹ. Tổng thời gian chạy 20 epoch, kể cả việc ghi loss mỗi epoch, là 10,7 s.
+**Pseudocode (MLP).**
 
+    khởi tạo W1, W2 theo He; b1 ← 0; b2 ← 0
+    lặp epoch = 1..E:
+        hoán vị ngẫu nhiên các mẫu huấn luyện
+        với mỗi mini-batch (X_B, Y_B):
+            Z1 ← X_B W1 + b1;  A1 ← max(0, Z1)
+            Z2 ← A1 W2 + b2;   P ← softmax(Z2)
+            dZ2 ← (P − Y_B) / |B|
+            dW2 ← A1ᵀ dZ2;  db2 ← tổng các hàng của dZ2
+            dZ1 ← (dZ2 W2ᵀ) ⊙ 1[Z1 > 0]
+            dW1 ← X_Bᵀ dZ1;  db1 ← tổng các hàng của dZ1
+            W ← W − η dW;  b ← b − η db      (cho cả hai lớp)
 ![Đường học MLP](mlp_curves.png)
 
 ## 8. Ảnh hưởng của siêu tham số lên MLP
@@ -182,7 +223,7 @@ Khi η tăng từ 0,1 lên 0,3, accuracy validation tăng 0,47 điểm ở 128 n
 Cấu hình cuối cùng là 512 nơ-ron, η = 0,3 (batch 128, 20 epoch), được dùng để huấn luyện lại và đánh giá trên tập test ở mục 10.
 
 ![Ảnh hưởng của siêu tham số lên MLP](mlp_hyper.png)
-## 9. Random Forest
+## 9. Random Forest [5, 6]
 
 ### 9.1. Cây quyết định
 
@@ -410,3 +451,36 @@ Hai điểm riêng của Naïve Bayes: Multinomial NB nhầm 503 ảnh Sandal th
 **Giải thích có thể (chưa kiểm chứng).** Ảnh Fashion-MNIST có nhiều mức xám và nhiều lớp có hình dạng chồng lấn, nên việc nhị phân hoá pixel ở ngưỡng 0,5 (dùng cho Bernoulli NB và Random Forest) có thể làm mất thông tin hơn so với chữ số; điều này phù hợp với việc Bernoulli NB có mức giảm lớn nhất (19,42 điểm) và Gaussian NB, vốn dùng cường độ thật, đứng đầu nhóm Naïve Bayes. Tuy nhiên chúng tôi không có thí nghiệm riêng để tách ảnh hưởng của nhị phân hoá khỏi ảnh hưởng của việc cấu hình chưa được chọn lại cho bộ dữ liệu này (ví dụ var_smoothing = 0,1 của Gaussian NB, độ sâu 20 của Random Forest), nên đây chỉ là phỏng đoán.
 
 **Hạn chế.** Mỗi mô hình chỉ chạy một seed; cấu hình chọn trên MNIST chứ không chọn lại trên Fashion-MNIST; chưa so ghép cặp giữa các mô hình; chưa đo thời gian trên bộ dữ liệu này.
+## Kết luận
+
+Chúng tôi đã cài đặt từ đầu bằng NumPy và so sánh sáu mô hình trên MNIST, mỗi mô hình có cấu hình chọn bằng tập validation và được đánh giá trên tập test một lần. MLP đạt accuracy cao nhất (98,13%), tiếp theo là Random Forest (96,21%), softmax regression (92,31%) và Naïve Bayes (81,59% đến 84,50% tuỳ biến thể). Chênh lệch giữa các nhóm lớn hơn nhiều so với nhiễu lấy mẫu; riêng thứ hạng giữa ba biến thể Naïve Bayes thì chưa đủ cơ sở để kết luận, và thứ hạng của sáu mô hình giữ nguyên ở cả hai nửa của tập test. Mô hình chính xác nhất cũng huấn luyện lâu nhất (MLP, trung vị khoảng 264 s, gấp khoảng 3 lần Random Forest và khoảng 78 lần softmax), trong khi softmax regression huấn luyện trong vài giây, dự đoán 0,003 s và có trọng số xem được dưới dạng ảnh.
+
+Trên Fashion-MNIST với cùng cấu hình, mọi mô hình giảm từ 8,58 đến 19,42 điểm phần trăm. MLP vẫn cao nhất (87,72%), softmax (83,73%) vượt Random Forest (82,32%), và Gaussian NB dẫn đầu nhóm Naïve Bayes (67,26%).
+
+**Hạn chế.** (i) Mỗi mô hình chỉ chạy một seed ở đánh giá cuối. (ii) Siêu tham số được quét từng cái một, chưa phải tìm kiếm trên lưới đầy đủ. (iii) Thời gian đo không ổn định giữa các lần chạy (tỉ lệ max/min lên đến 4,2 lần ở Multinomial NB), nên chỉ những so sánh có khoảng min–max không giao nhau mới đáng tin. (iv) Hai nửa của tập test MNIST có độ khó khác nhau rõ rệt (mục 10) mà chúng tôi chưa giải thích được. (v) Pixel được nhị phân hoá ở ngưỡng 0,5 cho Random Forest và Bernoulli NB mà chưa tối ưu ngưỡng. (vi) Với Fashion-MNIST, cấu hình chọn trên MNIST và chưa được chọn lại, nên kết quả đo khả năng chuyển cấu hình, không phải accuracy tốt nhất.
+
+**Hướng phát triển.** Thử mạng tích chập (CNN), tăng cường dữ liệu (xoay, dịch, nhiễu) và bộ dữ liệu EMNIST; chọn lại siêu tham số riêng cho Fashion-MNIST; chạy nhiều seed để có khoảng tin cậy cho mọi so sánh.
+## Khai báo sử dụng AI
+
+Nhóm sử dụng trợ lý AI (Claude) trong các việc sau: lập lộ trình thực hiện; gợi ý và viết mã nguồn ban đầu cho các mô hình, độ đo và các kịch bản thí nghiệm; hỗ trợ soạn các phần mô tả và nhận xét trong báo cáo từ số liệu do nhóm chạy; và hướng dẫn thao tác (cài đặt, Git). Nhóm đã chạy toàn bộ mã nguồn, kiểm chứng bằng scikit-learn, đạo hàm số và PyTorch, và số liệu trong báo cáo lấy từ kết quả chạy của nhóm (lưu trong `results/`). PyTorch và scikit-learn chỉ dùng để đối chiếu như đề cho phép. Nhóm chịu trách nhiệm về toàn bộ mã nguồn và nội dung nộp.
+## Phân công công việc
+
+| Thành viên | MSSV | Công việc đã thực hiện | Đóng góp (%) |
+|---|---|---|---|
+| [Tên] | [MSSV] | [liệt kê cụ thể: mô hình nào, thí nghiệm nào, mục nào của báo cáo, slide] | [số] |
+| [Tên] | [MSSV] | [...] | [số] |
+| [Tên] | [MSSV] | [...] | [số] |
+
+Tổng đóng góp: 100%.
+## Tài liệu tham khảo
+
+[1] Y. LeCun, L. Bottou, Y. Bengio, P. Haffner, "Gradient-based learning applied to document recognition", Proceedings of the IEEE, 86(11), 2278–2324, 1998.
+[2] A. McCallum, K. Nigam, "A comparison of event models for Naive Bayes text classification", AAAI-98 Workshop on Learning for Text Categorization, 41–48, 1998.
+[3] D. E. Rumelhart, G. E. Hinton, R. J. Williams, "Learning representations by back-propagating errors", Nature, 323, 533–536, 1986.
+[4] K. He, X. Zhang, S. Ren, J. Sun, "Delving deep into rectifiers: Surpassing human-level performance on ImageNet classification", ICCV, 1026–1034, 2015.
+[5] L. Breiman, "Random forests", Machine Learning, 45(1), 5–32, 2001.
+[6] L. Breiman, J. Friedman, R. Olshen, C. Stone, Classification and Regression Trees, Wadsworth, 1984.
+[7] C. R. Harris et al., "Array programming with NumPy", Nature, 585, 357–362, 2020.
+[8] F. Pedregosa et al., "Scikit-learn: Machine learning in Python", Journal of Machine Learning Research, 12, 2825–2830, 2011.
+[9] A. Paszke et al., "PyTorch: An imperative style, high-performance deep learning library", NeurIPS, 2019.
+[10] H. Xiao, K. Rasul, R. Vollgraf, "Fashion-MNIST: a novel image dataset for benchmarking machine learning algorithms", arXiv:1708.07747, 2017.
