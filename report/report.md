@@ -377,6 +377,9 @@ Bảng đầy đủ accuracy, precision (macro), recall (macro) và F1 (macro):
 Cặp chữ số 4 và 9 nằm trong ba cặp nhầm nhiều nhất của cả sáu mô hình (4→9 ở năm mô hình, 9→4 ở softmax và MLP), nên đây là cặp khó nhất với mọi họ mô hình ở các cấu hình này; một lý do có thể là chữ 4 viết hở phía trên dễ giống chữ 9 (chưa kiểm chứng). Cặp 3 và 5 xuất hiện ở bốn mô hình (5→3 ở ba biến thể NB, 3→5 ở RF). Lỗi của Naïve Bayes tập trung hơn: cặp nhầm lớn nhất chiếm 14,8% số lỗi của Gaussian NB (272 trên 1.841), 10,6% ở Multinomial NB (173 trên 1.626) và 8,6% ở Bernoulli NB (133 trên 1.550), trong khi ở softmax, MLP và RF cặp lớn nhất chỉ chiếm 5,2% (40 trên 769), 4,3% (8 trên 187) và 5,8% (22 trên 379). Điều này gợi ý giả định độc lập giữa các pixel gây ra những nhầm lẫn mang tính hệ thống, nhưng chúng tôi chưa kiểm chứng. Trên ma trận của Gaussian NB, ô đường chéo nhạt nhất là của chữ số 4 và 5 (đọc từ hình), tức hai chữ số này bị bỏ sót nhiều nhất.
 
 ![Confusion matrix trên test](confusion_test_all.png)
+Confusion matrix của bốn phương pháp so sánh chính trên cả ba tập (train, validation, test), chuẩn hoá theo hàng để so sánh được giữa các tập có kích thước khác nhau; số đếm thô nằm trong `results/metrics.json`.
+
+![Confusion matrix trên train, validation và test](confusion_all_sets.png)
 
 **Thời gian.** Mỗi mô hình được huấn luyện 3 lần theo 3 vòng xen kẽ (cả 6 mô hình chạy lần lượt trong mỗi vòng) sau một lượt khởi động không tính giờ; thời gian dự đoán đo trên 10.000 ảnh validation. Thời gian huấn luyện tính cả khởi tạo, và thời gian dự đoán của Random Forest tính cả bước nhị phân hoá. Máy: Windows 11, bộ xử lý Intel64 Family 6 Model 170 (22 luồng logic), Python 3.13.0, NumPy 2.5.3. Chúng tôi báo cáo trung vị kèm khoảng min–max (số liệu từng vòng nằm trong `results/timing.json`).
 
