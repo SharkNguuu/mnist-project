@@ -285,9 +285,6 @@ with gr.Blocks() as demo:
                 label="So sánh mô hình",
             )
             gr.Markdown(
-                "### Mẹo để dự đoán tốt hơn\n"
-                "- Vẽ một chữ số lớn, rõ nét và gần giữa bảng.\n"
-                "- Tránh chạm sát mép hoặc vẽ nhiều chữ số cùng lúc.\n"
                 "- Confidence là mức độ tin cậy của mô hình, không đảm bảo chữ số đúng."
             )
 
